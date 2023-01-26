@@ -1,0 +1,18 @@
+#jinja2: lstrip_blocks: True, trim_blocks: True
+network:
+  version: 1
+  config:
+  {% for network in __item.networks %}
+  {% if loop.first %}
+    - type: physical
+      name: ens2
+      subnets:
+        - type: static
+          address: {{ network.address }}
+          gateway: {{ network.gateway }}
+          dns-nameservers:
+          {% for nameserver in network.nameservers %}
+            - {{ nameserver }}
+          {% endfor %}
+  {% endif %}
+  {% endfor %}

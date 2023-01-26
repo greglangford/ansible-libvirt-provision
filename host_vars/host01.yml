@@ -1,0 +1,17 @@
+virtual_machines:
+  - name: vm100
+    state: present
+    vcpus: 1
+    memory: 2048
+    hostname: vm100
+    volumes:
+      - name: root
+        capacity: 20G
+        pool: storage
+        image: /var/lib/libvirt/images/debian-11-genericcloud-amd64.raw
+    networks:
+      - bridge: 'br1'
+        address: 172.16.2.2/24
+        gateway: 172.16.2.1
+        nameservers:
+          - 172.16.2.1

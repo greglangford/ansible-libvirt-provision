@@ -1,0 +1,9 @@
+- name: provision
+  include_tasks: provision.yml
+  vars:
+    __item: '{{ item }}'
+  loop: '{{ virtual_machines }}'
+  loop_control:
+    label: '{{ item.name }}'
+  when:
+    - item.state == 'present'

@@ -1,0 +1,77 @@
+__libvirt_user: libvirt-qemu
+__libvirt_group: libvirt-qemu
+
+__installed_state_check_command: virsh list --all --name
+__running_state_check_command: virsh list --name --state-running
+__installed_state: '{{ (__item.name in __installed_state_check_command_result.stdout_lines) | ternary ("present", "absent") }}'
+__running_state: '{{ (__item.name in __running_state_check_command_result.stdout_lines) | ternary ("present", "absent") }}'
+
+__volumes_state_check_command: 'virsh vol-info --vol {{ __item.name }}-{{ __volume_item.name }} --pool {{ __volume_item.pool }}'
+__volume_create_command: 'virsh vol-create-as --name {{ __item.name }}-{{ __volume_check_state_item.__volume_item.name }} --pool {{ __volume_check_state_item.__volume_item.pool }} --capacity {{ __volume_check_state_item.__volume_item.capacity }}'
+__volume_create_success: '{{ __volume_create_command_result.rc == 0 }}'
+__volume_create_command_loop_label: '{{ __item.name }}-{{ __volume_check_state_item.__volume_item.name }}'
+
+__volume_image_upload_command: 'virsh vol-upload --vol {{ __item.name }}-{{ __volume_created_item.__volume_check_state_item.__volume_item.name }} --file {{ __volume_created_item.__volume_check_state_item.__volume_item.image }} --pool {{ __volume_created_item.__volume_check_state_item.__volume_item.pool }}'
+__volume_image_upload_command_loop_label: '{{ __item.name }}-{{ __volume_created_item.__volume_check_state_item.__volume_item.name }}'
+__volume_image_skip_upload: '{{ ("image" in __volume_created_item.__volume_check_state_item.__volume_item.keys()) | ternary ("no", "yes") }}'
+__volume_image_upload_success: '{{ __volume_created_item.rc == 0 }}'
+
+__nocloud_network_config_path: '{{ __bootstrap_temporary_directory_result.path }}/network-config.cfg'
+__nocloud_user_data_path: '{{ __bootstrap_temporary_directory_result.path }}/user-data'
+
+__nocloud_templates:
+  - src: network-config.cfg.j2
+    dest: '{{ __nocloud_network_config_path }}'
+  - src: user-data.j2
+    dest: '{{ __nocloud_user_data_path }}'
+
+__cloud_localds_cloud_init_disk_path: '{{ __bootstrap_temporary_directory_result.path }}/nocloud.img'
+__cloud_localds_command: 'cloud-localds -m local -N {{ __nocloud_network_config_path }} {{ __cloud_localds_cloud_init_disk_path }} {{ __nocloud_user_data_path }}'
+
+__virt_install_disks: >-
+  {% set __x = [] -%}
+  {% for volume in __item.volumes -%}
+    {{ __x.append('--disk vol=' + volume.pool + '/' + __item.name + '-' + volume.name + ',bus=virtio') -}}
+  {% endfor -%}
+  {{ __x | join(' ') -}}
+
+__virt_install_networks: >-
+  {% set __x = [] -%}
+  {% for network in __item.networks -%}
+    {{ __x.append('--bridge=' + network.bridge + ',model=virtio') -}}
+  {% endfor -%}
+  {{ __x | join(' ') -}}
+
+__virt_install_cloudinit_disk: '--disk path={{ __bootstrap_temporary_directory_result.path }}/nocloud.img,device=cdrom'
+
+__virt_install_bootstrap_stage_command_list:
+  - 'virt-install'
+  - '--name {{ __item.name }}'
+  - '--memory {{ __item.memory }}'
+  - '--cpu host'
+  - '--vcpus {{__item.vcpus }}'
+  - '{{ __virt_install_disks }}'
+  - '{{ __virt_install_cloudinit_disk }}'
+  - '{{ __virt_install_networks }}'
+  - '--graphics none'
+  - '--noautoconsole'
+  - '--import'
+  - '--transient'
+  - '--wait -1'
+
+__virt_install_bootstrap_stage_command: '{{ __virt_install_bootstrap_stage_command_list | join(" ") }}'
+
+__virt_install_final_stage_command_list:
+  - 'virt-install'
+  - '--name {{ __item.name }}'
+  - '--memory {{ __item.memory }}'
+  - '--cpu host'
+  - '--vcpus {{__item.vcpus }}'
+  - '{{ __virt_install_disks }}'
+  - '{{ __virt_install_networks }}'
+  - '--graphics none'
+  - '--noautoconsole'
+  - '--autostart'
+  - '--import'
+
+__virt_install_final_stage_command: '{{ __virt_install_final_stage_command_list | join(" ") }}'

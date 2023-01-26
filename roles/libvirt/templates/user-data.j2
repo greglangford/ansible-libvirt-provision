@@ -1,0 +1,19 @@
+#cloud-config
+hostname: '{{ __item.hostname }}'
+
+disable_root: false
+user: root
+password: $6$rounds=4096$Dsev6rZgSLr$85EYJBE4Z6iaVRMDYGSNfv6ZALNXp0tq2v/0m45WAUI/oaMU.iYkTOIeszs8MhxozxZ6bHN2du0IdmRD/QwAR1
+chpasswd: {expire: False}
+users: []
+
+ssh_pwauth: false
+ssh_authorized_keys:
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDf8k/JaK9kOOntholGLBpc3FDHdaO1mEcE1QtpGD1LTMBgR94lsKsmzOb7i4m2wjyyrPLweS3qmo/YiFgkHGdPHIVJCq1jN1JAVd9ZE0ij8gv8zjh21XkhMp0C7n1jzobsOhCfZZAuWI8/oAlbM9oLwdHuF8oQtQaOx7SkOKuWA/dRJoolaYBcTsy+04pDJWBIqm9siRmLlPonleQcT6IeLmlBA2Kr8kwRzJ1D+tpXagv1xUm5mxQHaYbY5ZhZQswvYQ8kx6a5nbCCk+3BaR9O6N/iqImnGhp50mvDiYVKkzvD+4ZeN6G9lTqCmZn3jJ5j6z7oNoTMlfs70Mj4kx+4wO2ddqA6mPSsy3qfrmWplIVYUk6DdPpWhUveqtOsXRf4YjTU3/57gL1ouTqaVgrQeN9VT595BNxOrdat0ZyjZyigysq+3mnVI1iMHv1ljmgCAdwVaK6lkGvDxE8+M5ErO1zcYd8CZmioBA1WvVTga/YIkHo3+y4c8tccx8T9gRM=
+
+power_state:
+  delay: now
+  mode: poweroff
+  message: Powering off
+  timeout: 2
+  condition: true

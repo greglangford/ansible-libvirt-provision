@@ -1,0 +1,93 @@
+- name: check installed state
+  command: '{{ __installed_state_check_command }}'
+  changed_when: False
+  register: __installed_state_check_command_result
+
+- name: check running state
+  command: '{{ __running_state_check_command }}'
+  changed_when: False
+  register: __running_state_check_command_result
+
+- name: check volumes state
+  command: '{{ __volumes_state_check_command }}'
+  loop: '{{ __item.volumes }}'
+  loop_control:
+    label: '{{ __item.name }}-{{ __volume_item.name }}'
+    loop_var: __volume_item
+  register: __volumes_state_check_command_result
+  changed_when: False
+  failed_when: False
+
+- name: create volume
+  command: '{{ __volume_create_command }}'
+  loop: '{{ __volumes_state_check_command_result.results }}'
+  loop_control:
+    label: '{{ __volume_create_command_loop_label }}'
+    loop_var: __volume_check_state_item
+  register: __volume_create_command_result
+  changed_when: __volume_create_success
+  when:
+    - __item.state == 'present'
+    - __volume_check_state_item.rc == 1
+
+- name: upload image to volume
+  command: '{{ __volume_image_upload_command }}'
+  loop: '{{ __volume_create_command_result.results }}'
+  loop_control:
+    label: '{{ __volume_image_upload_command_loop_label }}'
+    loop_var: __volume_created_item
+  when:
+    - __item.state == 'present'
+    - __volume_created_item.changed
+    - __volume_image_skip_upload == 'no'
+
+- name: create bootstrap temporary directory
+  tempfile:
+    state: directory
+    suffix: '-libvirt'
+  register: __bootstrap_temporary_directory_result
+  when: __installed_state == 'absent'
+
+- name: fix bootstrap temporary directory persmissions
+  file:
+    path: '{{ __bootstrap_temporary_directory_result.path }}'
+    owner: '{{ __libvirt_user }}'
+    group: '{{ __libvirt_group }}'
+  when: __bootstrap_temporary_directory_result.changed
+
+- name: create cloud-init configuration
+  template:
+    src: '{{ __template_item.src }}'
+    dest: '{{ __template_item.dest }}'
+  loop: '{{ __nocloud_templates }}'
+  loop_control:
+    loop_var: __template_item
+    label: '{{ __template_item.dest }}'
+  when: __installed_state == 'absent'
+
+- name: create cloud-init disk
+  command: '{{ __cloud_localds_command }}'
+  args:
+    creates: '{{ __cloud_localds_cloud_init_disk_path }}'
+  register: __cloud_localds_command_result
+  when: __installed_state == 'absent'
+
+- name: virt-install bootstrap stage
+  command: '{{ __virt_install_bootstrap_stage_command }}'
+  register: __virt_install_bootstrap_stage_result
+  changed_when: __virt_install_bootstrap_stage_result.rc == 0
+  when: __installed_state == 'absent'
+
+- name: virt-install final stage
+  command: '{{ __virt_install_final_stage_command }}'
+  register: __virt_install_final_stage_result
+  changed_when: __virt_install_final_stage_result.rc == 0
+  when:
+    - __installed_state == 'absent'
+    - __virt_install_bootstrap_stage_result.changed
+
+- name: delete bootstrap temporary directory
+  file:
+    path: '{{ __bootstrap_temporary_directory_result.path }}'
+    state: absent
+  when: __bootstrap_temporary_directory_result.changed

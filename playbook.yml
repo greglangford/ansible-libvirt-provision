@@ -1,0 +1,4 @@
+- hosts:
+    - host01
+  roles:
+    - libvirt
